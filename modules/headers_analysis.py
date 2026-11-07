@@ -498,6 +498,18 @@ class HeadersAnalyzer:
 
         actual_url = response.get("url", target)
 
+        if self.engine is not None and isinstance(actual_url, str):
+            try:
+                allowed, reason = self.engine.scope.check(actual_url)
+                if not allowed:
+                    return self._error(
+                        actual_url,
+                        f"Response URL outside scope: {reason}",
+                        "blocked"
+                    )
+            except (ValueError, TypeError, AttributeError):
+                return self._error(actual_url, "Invalid response URL")
+
         headers = self._normalize_headers(
             response.get("header_items", response.get("headers", {}))
         )

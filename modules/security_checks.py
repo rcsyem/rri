@@ -399,6 +399,18 @@ class SecurityChecks:
         if not isinstance(actual_url, str):
             return self._error(target, "Invalid response URL")
 
+        if self.engine is not None:
+            try:
+                allowed, reason = self.engine.scope.check(actual_url)
+                if not allowed:
+                    return self._error(
+                        actual_url,
+                        f"Response URL outside scope: {reason}",
+                        "blocked"
+                    )
+            except (ValueError, TypeError, AttributeError):
+                return self._error(actual_url, "Invalid response URL")
+
         body = self._decode_body(response.get("body", b""))
 
         body = body[:self.MAX_BODY_ANALYSIS]

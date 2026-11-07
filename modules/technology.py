@@ -529,4 +529,26 @@ class TechnologyDetector:
                 "error": response.get("error")
             }
 
+        actual_url = response.get("url", target)
+
+        if isinstance(actual_url, str) and self.engine is not None:
+            try:
+                allowed, reason = self.engine.scope.check(actual_url)
+                if not allowed:
+                    return {
+                        "status": "blocked",
+                        "target": actual_url,
+                        "technologies": [],
+                        "technology_count": 0,
+                        "error": f"Response URL outside scope: {reason}"
+                    }
+            except (ValueError, TypeError, AttributeError):
+                return {
+                    "status": "error",
+                    "target": target,
+                    "technologies": [],
+                    "technology_count": 0,
+                    "error": "Invalid response URL"
+                }
+
         return self._analyze(target, response)
