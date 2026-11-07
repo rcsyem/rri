@@ -1,3 +1,4 @@
+import inspect
 import math
 import ssl
 
@@ -6,6 +7,21 @@ import aiohttp
 from core.scope import ScopeEngine
 from core.dns_resolver import SafeDNSResolver
 from core.redirect_guard import RedirectGuard
+
+
+def _aiohttp_supports_max_headers() -> bool:
+    """Check whether the installed aiohttp version accepts max_headers.
+
+    The parameter was added in aiohttp 3.14.  The project allows
+    aiohttp>=3.12,<4, so we must conditionally pass it.
+    """
+    try:
+        params = inspect.signature(
+            aiohttp.ClientSession.__init__
+        ).parameters
+        return "max_headers" in params
+    except (TypeError, ValueError):
+        return False
 
 
 class HTTPEngine:
@@ -135,19 +151,25 @@ class HTTPEngine:
                 sock_read=min(10, self.timeout)
             )
 
-            async with aiohttp.ClientSession(
-                connector=connector,
-                timeout=timeout,
-                trust_env=False,
-                auto_decompress=False,
-                max_headers=self.max_header_count,
-                max_field_size=self.max_header_field_size,
-                max_line_size=self.max_header_line_size,
-                headers={
+            session_kwargs = {
+                "connector": connector,
+                "timeout": timeout,
+                "trust_env": False,
+                "auto_decompress": False,
+                "max_field_size": self.max_header_field_size,
+                "max_line_size": self.max_header_line_size,
+                "headers": {
                     "User-Agent": "RRI/0.1",
                     "Accept": "*/*",
                     "Accept-Encoding": "identity"
                 }
+            }
+
+            if _aiohttp_supports_max_headers():
+                session_kwargs["max_headers"] = self.max_header_count
+
+            async with aiohttp.ClientSession(
+                **session_kwargs
             ) as session:
 
                 while True:
@@ -192,6 +214,17 @@ class HTTPEngine:
                             redirect_count += 1
                             current_url = next_url
                             continue
+
+                        if (
+                            not _aiohttp_supports_max_headers()
+                            and len(response.headers) > self.max_header_count
+                        ):
+                            return {
+                                "status": "blocked",
+                                "url": current_url,
+                                "http_status": response.status,
+                                "error": "Response header count exceeds limit"
+                            }
 
                         body = bytearray()
 
