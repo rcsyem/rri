@@ -531,9 +531,10 @@ class TechnologyDetector:
 
         actual_url = response.get("url", target)
 
-        if isinstance(actual_url, str) and self.engine is not None:
+        scope = getattr(self.engine, "scope", None) if self.engine else None
+        if isinstance(actual_url, str) and scope is not None:
             try:
-                allowed, reason = self.engine.scope.check(actual_url)
+                allowed, reason = scope.check(actual_url)
                 if not allowed:
                     return {
                         "status": "blocked",

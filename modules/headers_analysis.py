@@ -498,9 +498,10 @@ class HeadersAnalyzer:
 
         actual_url = response.get("url", target)
 
-        if self.engine is not None and isinstance(actual_url, str):
+        scope = getattr(self.engine, "scope", None) if self.engine else None
+        if scope is not None and isinstance(actual_url, str):
             try:
-                allowed, reason = self.engine.scope.check(actual_url)
+                allowed, reason = scope.check(actual_url)
                 if not allowed:
                     return self._error(
                         actual_url,

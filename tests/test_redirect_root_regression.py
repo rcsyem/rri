@@ -97,13 +97,40 @@ class TestRedirectBehavior(unittest.TestCase):
         self.assertEqual(next_url, "https://example.invalid/")
 
     def test_case5_redirect_to_internal_path(self):
-        """Redirect to an internal path outside allowed_paths is blocked."""
+        """Redirect to a path outside a specific allowed_paths is blocked.
+
+        When allowed_paths is restricted to e.g. ["/shop"], a redirect
+        to /about should be blocked.  When allowed_paths includes "/"
+        (runtime target — entire domain authorized), /about is allowed.
+        """
+        # Config-based scope with restricted paths
+        import json, tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = Path(tmp) / "scope.json"
+            cfg.write_text(json.dumps({
+                "authorized_assets": [{
+                    "domain": "example.invalid",
+                    "allowed_paths": ["/shop"]
+                }]
+            }))
+            restricted_scope = ScopeEngine(cfg)
+            guard = RedirectGuard(restricted_scope, max_redirects=5)
+
+            current = "https://example.invalid/shop"
+            location = "/about"
+            valid, next_url, msg = guard.validate(current, location, 0)
+            self.assertFalse(valid, f"Should be blocked with restricted paths: {msg}")
+            self.assertIsNone(next_url)
+
+    def test_case5b_runtime_target_allows_internal_path(self):
+        """Runtime target scope authorizes all paths on the domain."""
         current = "https://example.invalid/"
         location = "/about"
         valid, next_url, msg = self.guard.validate(current, location, 0)
-        # /about is not in allowed_paths (only "/" is), so blocked
-        self.assertFalse(valid, f"Should be blocked: {msg}")
-        self.assertIsNone(next_url)
+        self.assertTrue(valid, f"Runtime scope should allow: {msg}")
+        self.assertEqual(next_url, "https://example.invalid/about")
 
     def test_case6_redirect_to_external_domain(self):
         """Redirect to an external domain must be blocked."""
