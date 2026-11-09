@@ -1,5 +1,6 @@
 import unittest
 
+from core.scope import ScopeEngine
 from modules.security_checks import SecurityChecks
 
 
@@ -23,6 +24,7 @@ class FakeEngine:
     def __init__(self, response):
         self.response = response
         self.calls = 0
+        self.scope = ScopeEngine("https://example.invalid/")
 
     async def fetch(self, target):
         self.calls += 1
@@ -31,9 +33,12 @@ class FakeEngine:
 
 class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
+    def make_scanner(self, response=None):
+        return SecurityChecks(FakeEngine(response or make_response("")))
+
     async def test_empty_page(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response("<html><body>Hello</body></html>")
         )
@@ -45,7 +50,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = '<a href="/admin/">Admin</a>'
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -58,7 +63,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = '<a href="https://other.invalid/admin/">Admin</a>'
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -72,7 +77,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = '<a href="/backup/database.sql">Backup</a>'
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -86,7 +91,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = '<a href="/.env">Configuration</a>'
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -98,7 +103,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_debug_indicator(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response("Laravel Ignition")
         )
@@ -112,7 +117,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = "Traceback (most recent call last):"
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -124,7 +129,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_sql_error_indicator(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response("SQLSTATE[42000]: Syntax error")
         )
@@ -138,7 +143,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = "/*# sourceMappingURL=/assets/app.js.map */"
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -152,7 +157,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = "/*# sourceMappingURL=https://other.invalid/app.js.map */"
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -171,7 +176,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
         </html>
         """
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -187,7 +192,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = "DB_PASSWORD=" + secret
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -205,7 +210,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         body = "Error in /var/www/application/index.php"
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response(body)
         )
@@ -217,7 +222,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_private_ip_indicator(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response("Internal address: 192.168.1.20")
         )
@@ -256,7 +261,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
             "error": "Connection failed"
         }
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             response=response
         )
@@ -266,7 +271,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_dict_response_rejected(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             response=None
         )
@@ -275,7 +280,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_severity_counts(self):
 
-        result = await SecurityChecks().scan(
+        result = await self.make_scanner().scan(
             TARGET,
             make_response("Laravel Ignition")
         )

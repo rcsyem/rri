@@ -1,5 +1,6 @@
 import unittest
 
+from core.scope import ScopeEngine
 from modules.headers_analysis import HeadersAnalyzer
 
 
@@ -7,6 +8,7 @@ class FakeEngine:
     def __init__(self, response):
         self.response = response
         self.calls = 0
+        self.scope = ScopeEngine("https://example.invalid/")
 
     async def fetch(self, target):
         self.calls += 1

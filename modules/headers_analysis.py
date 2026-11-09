@@ -499,17 +499,24 @@ class HeadersAnalyzer:
         actual_url = response.get("url", target)
 
         scope = getattr(self.engine, "scope", None) if self.engine else None
-        if scope is not None and isinstance(actual_url, str):
-            try:
-                allowed, reason = scope.check(actual_url)
-                if not allowed:
-                    return self._error(
-                        actual_url,
-                        f"Response URL outside scope: {reason}",
-                        "blocked"
-                    )
-            except (ValueError, TypeError, AttributeError):
-                return self._error(actual_url, "Invalid response URL")
+        if scope is None:
+            return self._error(
+                actual_url,
+                "No scope engine available — cannot verify response URL",
+                "blocked"
+            )
+        if not isinstance(actual_url, str):
+            return self._error(target, "Invalid response URL")
+        try:
+            allowed, reason = scope.check(actual_url)
+            if not allowed:
+                return self._error(
+                    actual_url,
+                    f"Response URL outside scope: {reason}",
+                    "blocked"
+                )
+        except (ValueError, TypeError, AttributeError):
+            return self._error(actual_url, "Invalid response URL")
 
         headers = self._normalize_headers(
             response.get("header_items", response.get("headers", {}))

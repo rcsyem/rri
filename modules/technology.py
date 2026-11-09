@@ -532,24 +532,39 @@ class TechnologyDetector:
         actual_url = response.get("url", target)
 
         scope = getattr(self.engine, "scope", None) if self.engine else None
-        if isinstance(actual_url, str) and scope is not None:
-            try:
-                allowed, reason = scope.check(actual_url)
-                if not allowed:
-                    return {
-                        "status": "blocked",
-                        "target": actual_url,
-                        "technologies": [],
-                        "technology_count": 0,
-                        "error": f"Response URL outside scope: {reason}"
-                    }
-            except (ValueError, TypeError, AttributeError):
+        if scope is None:
+            return {
+                "status": "blocked",
+                "target": target,
+                "technologies": [],
+                "technology_count": 0,
+                "error": "No scope engine available — cannot verify response URL"
+            }
+        if not isinstance(actual_url, str):
+            return {
+                "status": "error",
+                "target": target,
+                "technologies": [],
+                "technology_count": 0,
+                "error": "Invalid response URL"
+            }
+        try:
+            allowed, reason = scope.check(actual_url)
+            if not allowed:
                 return {
-                    "status": "error",
-                    "target": target,
+                    "status": "blocked",
+                    "target": actual_url,
                     "technologies": [],
                     "technology_count": 0,
-                    "error": "Invalid response URL"
+                    "error": f"Response URL outside scope: {reason}"
                 }
+        except (ValueError, TypeError, AttributeError):
+            return {
+                "status": "error",
+                "target": target,
+                "technologies": [],
+                "technology_count": 0,
+                "error": "Invalid response URL"
+            }
 
         return self._analyze(target, response)

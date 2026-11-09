@@ -400,17 +400,22 @@ class SecurityChecks:
             return self._error(target, "Invalid response URL")
 
         scope = getattr(self.engine, "scope", None) if self.engine else None
-        if scope is not None:
-            try:
-                allowed, reason = scope.check(actual_url)
-                if not allowed:
-                    return self._error(
-                        actual_url,
-                        f"Response URL outside scope: {reason}",
-                        "blocked"
-                    )
-            except (ValueError, TypeError, AttributeError):
-                return self._error(actual_url, "Invalid response URL")
+        if scope is None:
+            return self._error(
+                actual_url,
+                "No scope engine available — cannot verify response URL",
+                "blocked"
+            )
+        try:
+            allowed, reason = scope.check(actual_url)
+            if not allowed:
+                return self._error(
+                    actual_url,
+                    f"Response URL outside scope: {reason}",
+                    "blocked"
+                )
+        except (ValueError, TypeError, AttributeError):
+            return self._error(actual_url, "Invalid response URL")
 
         body = self._decode_body(response.get("body", b""))
 
