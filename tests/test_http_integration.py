@@ -64,6 +64,7 @@ class LocalTestResolver:
 
 
 class TestHTTPEngine(HTTPEngine):
+    __test__ = False
 
     def _create_resolver(self):
         self.test_resolver = LocalTestResolver()

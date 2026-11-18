@@ -273,7 +273,7 @@ class TestSecurityChecks(unittest.IsolatedAsyncioTestCase):
 
         result = await self.make_scanner().scan(
             TARGET,
-            response=None
+            response=[]
         )
 
         self.assertEqual(result["status"], "error")

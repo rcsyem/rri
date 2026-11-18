@@ -1,2 +1,9 @@
 node_modules
 .env
+# Python generated files
+__pycache__/
+*.py[cod]
+*.egg-info/
+# Build artifacts
+build/
+dist/
